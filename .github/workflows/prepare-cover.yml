@@ -1,0 +1,33 @@
+name: Prepare PUBG portfolio cover
+on:
+  push:
+    paths:
+      - ".github/workflows/prepare-cover.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export exact first page of PDF as thumbnail
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          pdftoppm -f 1 -singlefile -jpeg -scale-to-x 840 -scale-to-y -1 -jpegopt quality=80 PUBG_Analysis.pdf pubg-report-cover
+          python3 -m pip install --quiet --break-system-packages Pillow
+          python3 - <<'PY'
+          from PIL import Image
+          p = 'pubg-report-cover.jpg'
+          image = Image.open(p).convert('RGB')
+          w, h = image.size
+          image = image.crop((int(w*.026), int(h*.037), int(w*.973), int(h*.964)))
+          image.save(p, quality=80, optimize=True)
+          PY
+      - name: Commit cover image
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubg-report-cover.jpg
+          git diff --cached --quiet || (git commit -m "Add report cover thumbnail" && git push)
